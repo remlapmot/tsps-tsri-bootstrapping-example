@@ -1,0 +1,137 @@
+---
+title: "Bootstrap standard errors for TSPS and TSRI estimators"
+author: "TP"
+date: "`r Sys.Date()`"
+format:
+  html:
+    toc: true
+    embed-resources: true
+---
+
+```{r include=FALSE}
+knitr::opts_chunk$set(collapse = TRUE)
+```
+
+```{r setup, message=FALSE}
+library(OneSampleMR)
+library(boot)
+library(tidyverse)
+```
+
+## Simulate some data
+
+```{r}
+set.seed(9)
+n <- 1000
+psi0 <- 0.5
+Z <- rbinom(n, 1, 0.5)
+X <- rbinom(n, 1, 0.7 * Z + 0.2 * (1 - Z))
+m0 <- plogis(1 + 0.8 * X - 0.39 * Z)
+Y <- rbinom(n, 1, plogis(psi0 * X + log(m0 / (1 - m0))))
+dat <- data.frame(Z, X, Y)
+```
+
+## Bootstrapping
+
+* For bootstrapping first define a function which returns the estimate, first for logistic TSPS
+
+```{r}
+tspsest <- function(data, indices){
+  d <- data[indices, ]
+  stage1 <- lm(X ~ Z, data = d)
+  d$xhat <- fitted.values(stage1)
+  stage2 <- glm(Y ~ xhat, family = binomial, data = d)
+  coef(stage2)[2]
+}
+```
+
+* Test this returns the causal log OR
+```{r}
+tspsest(dat, 1:1000)
+```
+
+* Perform bootstrapping
+
+```{r}
+set.seed(123456)
+tspsbt <- boot(dat, tspsest, R = 250)
+summary(tspsbt)
+boot.ci(tspsbt, type = "basic")
+```
+
+* For logistic TSRI
+
+```{r}
+tsriest <- function(data, indices){
+  d <- data[indices, ]
+  stage1 <- lm(X ~ Z, data = d)
+  d$res <- residuals(stage1)
+  stage2 <- glm(Y ~ X + res, family = binomial, data = d)
+  coef(stage2)[2]
+}
+```
+
+* Test this returns the causal log OR
+
+```{r}
+tsriest(dat, 1:1000)
+```
+
+* Perform bootstrapping
+
+```{r}
+set.seed(7891011)
+tsribt <- boot(dat, tsriest, R = 250)
+summary(tsribt)
+boot.ci(tsribt, type = "basic")
+```
+
+## Comparison estimates and SEs using GMM from the OneSampleMR package
+
+* Example logistic TSPS estimate with SEs using GMM estimation in my **OneSampleMR** package
+
+```{r}
+tspslogitfit <- tsps(Y ~ X | Z , data = dat, link = "logit")
+summary(tspslogitfit)
+```
+
+* Example logistic TSRI estimate with SEs using GMM estimation in my **OneSampleMR** package
+
+```{r}
+tsrilogitfit <- tsri(Y ~ X | Z , data = dat, link = "logit")
+summary(tsrilogitfit)
+```
+
+## Manual estimation with unadjusted SEs
+
+* Stage 1
+
+```{r}
+stage1 <- lm(X ~ Z, data = dat)
+dat$xhat <- fitted.values(stage1)
+dat$res <- residuals(stage1)
+```
+
+* Logistic TSPS
+
+```{r}
+tspss2 <- glm(Y ~ xhat, family = binomial, data = dat)
+summary(tspss2)
+```
+
+* Logistic TSRI
+
+```{r}
+tsris2 <- glm(Y ~ X + res, family = binomial, data = dat)
+summary(tsris2)
+```
+
+## R session information
+
+<details>
+<summary>For reproducibility</summary>
+```{r}
+quarto::quarto_version()
+sessioninfo::session_info()
+```
+</details>
