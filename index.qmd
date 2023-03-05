@@ -137,6 +137,11 @@ The endogeneity test is now given by
 ```{r}
 summary(glht(tsris3, linfct = c("res - xhat = 0")))
 ```
+
+## Stata output for comparison
+
+
+
 ## R session information
 
 <details>
