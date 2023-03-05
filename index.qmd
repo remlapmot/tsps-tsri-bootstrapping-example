@@ -15,6 +15,7 @@ knitr::opts_chunk$set(collapse = TRUE)
 ```{r setup, message=FALSE}
 library(OneSampleMR)
 library(boot)
+library(multcomp)
 library(tidyverse)
 ```
 
@@ -126,6 +127,16 @@ tsris2 <- glm(Y ~ X + res, family = binomial, data = dat)
 summary(tsris2)
 ```
 
+* Logistic TSRI using $\widehat{X}$ for comparison of SE
+
+```{r}
+tsris3 <- glm(Y ~ xhat + res, family = binomial, data = dat)
+summary(tsris3)
+```
+The endogeneity test is now given by
+```{r}
+summary(glht(tsris3, linfct = c("res - xhat = 0")))
+```
 ## R session information
 
 <details>
